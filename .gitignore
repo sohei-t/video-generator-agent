@@ -1,0 +1,8 @@
+node_modules/
+tmp/
+.video-work/
+.DS_Store
+*.log
+*.env
+*.key
+*.pem
