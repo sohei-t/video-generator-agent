@@ -47,7 +47,8 @@ function parseArgs() {
 
 // ── 定数 ──────────────────────────────────────────
 const MARKER = '次のスライドに進んでください。';
-const VIEWPORT = { width: 1920, height: 1080 };
+const CAPTURE_VIEWPORT = { width: 1280, height: 720 };
+const OUTPUT_RESOLUTION = '1920:1080';
 const FONT_WAIT_MS = 1500;  // Google Fonts 読み込み待機
 const SLIDE_ANIM_MS = 3000; // スライド表示完了待機（段階的アニメーション対応）
 
@@ -293,7 +294,7 @@ async function generateVideo(baseName, { force = false, contentDir, videoDir, tm
   let browser;
   try {
     browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({ viewport: VIEWPORT });
+    const context = await browser.newContext({ viewport: CAPTURE_VIEWPORT });
     const page = await context.newPage();
 
     const fileUrl = `file://${htmlPath}`;
@@ -348,7 +349,7 @@ async function generateVideo(baseName, { force = false, contentDir, videoDir, tm
     'ffmpeg -y',
     `-f concat -safe 0 -i "${concatPath}"`,
     `-i "${mp3Path}"`,
-    '-c:v libx264 -vf "fps=30,format=yuv420p"',
+    `-c:v libx264 -vf "scale=${OUTPUT_RESOLUTION}:flags=lanczos,fps=30,format=yuv420p"`,
     '-preset medium -crf 18',
     '-c:a aac -b:a 192k',
     `-t ${totalDuration.toFixed(4)}`,
