@@ -242,9 +242,48 @@ open <プロジェクトパス>/videos/01-01_*.mp4
 - 解像度: 1920x1080
 - フレームレート: 30fps
 
-### Phase 4: クリーンアップ
+### Phase 4: YouTubeアップロード
 
-動画生成と品質検証が完了したら、ユーザーに確認してからワークスペースを削除する。
+動画生成と品質検証が完了したら、YouTubeにアップロードする。
+
+```bash
+# デフォルト: 視聴順で先頭5件をアップロード（private）
+node src/youtube_uploader.js --project <プロジェクトパス> --all
+
+# 件数を指定する場合
+node src/youtube_uploader.js --project <プロジェクトパス> --all --limit 10
+
+# 全件アップロード
+node src/youtube_uploader.js --project <プロジェクトパス> --all --no-limit
+
+# 個別トピックのアップロード
+node src/youtube_uploader.js --project <プロジェクトパス> 01-01_xxx
+
+# 公開設定を指定（public / unlisted / private）
+node src/youtube_uploader.js --project <プロジェクトパス> --all --privacy public
+```
+
+**アップロード処理:**
+1. OAuth 2.0 認証（初回のみブラウザ認証、以降はトークン自動更新）
+2. 再生リストを検索/作成（研修名 = プロジェクトフォルダ名で自動グループ化）
+3. 各動画をアップロード（タイトル・概要文を自動生成）
+4. アップロード済み動画を再生リストに自動追加
+
+**タイトル形式:** `研修名_番号_動画タイトル`
+- 研修名: プロジェクトフォルダ名
+- 番号: ファイル名から抽出（01-01 等）
+- 動画タイトル: HTMLの`<title>`タグから抽出
+
+**概要文:** TXTの台本から冒頭の要約とセクション一覧を自動生成
+
+**前提条件:**
+- OAuth クライアントシークレット: `~/.config/ai-agents/credentials/youtube/client_secret.json`
+- YouTube Data API v3 が GCP プロジェクトで有効化済み
+- OAuth 同意画面でアップロードするGoogleアカウントがテストユーザーに追加済み
+
+### Phase 5: クリーンアップ
+
+動画生成・アップロードが完了したら、ユーザーに確認してからワークスペースを削除する。
 
 ```bash
 # 作業領域の状態確認
@@ -308,6 +347,25 @@ node src/video_generator.js --project /path/to/project 01-01_api_wo_5fun_de_taik
 node src/video_generator.js --project /path/to/project 01-01_api_wo_5fun_de_taiken --force
 ```
 
+### youtube_uploader.js
+
+```bash
+# 視聴順で先頭5件をアップロード（デフォルト: private）
+node src/youtube_uploader.js --project /path/to/project --all
+
+# 件数指定
+node src/youtube_uploader.js --project /path/to/project --all --limit 10
+
+# 全件アップロード
+node src/youtube_uploader.js --project /path/to/project --all --no-limit
+
+# 単一トピックアップロード
+node src/youtube_uploader.js --project /path/to/project 01-01_api_wo_5fun_de_taiken
+
+# 公開設定を指定
+node src/youtube_uploader.js --project /path/to/project --all --privacy public
+```
+
 ---
 
 ## エラーハンドリング
@@ -323,6 +381,12 @@ ffmpeg_fail:
 
 playwright_fail:
   スライドキャプチャ失敗: HTMLのJSエラーを確認
+
+youtube_upload_fail:
+  認証エラー(401/403): トークンを削除して再認証
+    rm ~/.config/ai-agents/credentials/youtube/token.json
+  クォータ超過(403): 翌日まで待つ（YouTube APIは1日10,000ユニット）
+  動画が見つからない: 先にPhase 3で動画を生成すること
 ```
 
 ---
@@ -384,3 +448,100 @@ rm -rf <project>/tmp/
 - スライド境界マーカー: `次のスライドに進んでください。`
 - マーカーで分割したセグメント数 = HTMLのスライド数と一致すること
 - 純粋な話し言葉テキスト（SSMLタグ不要）
+
+---
+
+## AI Orchestrator 進捗レポート規約
+
+### PROGRESS_VIDEO.yaml の管理
+
+動画生成対象プロジェクトのルートディレクトリに `PROGRESS_VIDEO.yaml` を作成・更新する。このファイルは外部の AI Orchestrator ダッシュボード（localhost:3456）が定期的に読み取り、進捗を視覚化する。
+
+**注意**: learning-content-agent の `PROGRESS.yaml` と共存するため、動画生成用は `PROGRESS_VIDEO.yaml` というファイル名を使用する。
+
+### 初期化時の設定
+
+PROGRESS_VIDEO.yaml のテンプレートは `~/Desktop/AI Orchestrator/templates/video-generator-agent.yaml` を参照し、コピーして使用すること。テンプレートが存在しない場合は、以下のフォーマットに従って作成すること:
+
+```yaml
+project:
+  name: ""
+  agent_type: "video-generator-agent"
+  status: "idle"
+  started_at: ""
+  updated_at: ""
+
+progress:
+  overall_percent: 0
+  current_phase: "phase0-init"
+
+phases:
+  - name: "Phase 0: Initialization"
+    status: "pending"
+    steps:
+      - name: "Environment setup"
+        done: false
+      - name: "Asset preparation"
+        done: false
+
+  - name: "Phase 1: Script & Storyboard"
+    status: "pending"
+    steps:
+      - name: "Script generation"
+        done: false
+      - name: "Storyboard creation"
+        done: false
+
+  - name: "Phase 2: Production"
+    status: "pending"
+    steps:
+      - name: "Visual generation"
+        done: false
+      - name: "Audio generation"
+        done: false
+      - name: "Assembly"
+        done: false
+
+  - name: "Phase 3: Post-production"
+    status: "pending"
+    steps:
+      - name: "Editing"
+        done: false
+      - name: "Quality review"
+        done: false
+
+  - name: "Phase 4: Delivery"
+    status: "pending"
+    steps:
+      - name: "Export"
+        done: false
+      - name: "Publishing"
+        done: false
+
+errors: []
+```
+
+ワークフロー開始時に以下を設定すること:
+- `project.name`: 動画生成対象のプロジェクト名
+- `project.started_at`: 現在時刻（ISO 8601、JST）
+- `project.status`: `"in_progress"`
+
+### 更新タイミング（必須）
+
+1. **フェーズ開始時**: `status` → `"in_progress"`, `progress.current_phase` を更新
+2. **ステップ完了時**: `done` → `true`, `progress.overall_percent` を再計算
+3. **フェーズ完了時**: `status` → `"completed"`
+4. **エラー発生時**: `errors` 配列にエラーメッセージを追加
+5. **全体完了時**: `project.status` → `"completed"`, `progress.overall_percent` → `100`
+
+### progress.overall_percent の計算方法
+
+```
+overall_percent = (全フェーズの done: true のステップ合計 / 全フェーズの総ステップ数) × 100
+```
+
+### 厳守事項
+
+- PROGRESS_VIDEO.yaml の構造（キー名、フェーズ数、ステップ数）を変更しないこと
+- `project.updated_at` は更新の度に現在時刻で上書きすること
+- YAML として valid な形式を維持すること
