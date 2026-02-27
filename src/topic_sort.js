@@ -21,10 +21,10 @@ const DEFAULT_LIMIT = 5;
 
 // レベル名 → 数値マッピング
 const LEVEL_ORDER = {
-  intro: 0, introduction: 0, beginner: 0,
-  basic: 1, elementary: 1,
-  intermediate: 2,
-  advanced: 3,
+  intro: 0, introduction: 0, beginner: 0, part1: 0,
+  basic: 1, elementary: 1, part2: 1,
+  intermediate: 2, part3: 2,
+  advanced: 3, part4: 3,
 };
 
 // 数値 → 日本語ラベル
@@ -56,7 +56,7 @@ function getTopicSortKey(baseName, subfolder = '') {
   // Pattern C: 2階層数値 (01-01_title, 03-02_xxx)
   const matchC = baseName.match(/^(\d+)[-_](\d+)/);
   if (matchC) {
-    const level = subfolder ? (LEVEL_ORDER[subfolder.toLowerCase()] ?? 99) : 99;
+    const level = subfolder ? (LEVEL_ORDER[subfolder.toLowerCase()] ?? 99) : 0;
     return [level, parseInt(matchC[1], 10), parseInt(matchC[2], 10), baseName];
   }
 
